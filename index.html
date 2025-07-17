@@ -207,3 +207,160 @@
         document.getElementById("statusText").textContent = "PLAYER FOUND, CONNECTING...";
         db.ref("players/" + name).update({ looking: false });
         db.ref("players/" + candidate).update({ looking: false
+<script>
+  function startGame(p1, p2, mode) {
+    document.body.innerHTML = `
+      <div style="display:flex; height:100vh;">
+        <div style="flex:1; padding:20px; background:#1a1a2f;">
+          <h3 style="color:#0ff;">💬 Chat</h3>
+          <div id="chatBox" style="height:70vh; overflow-y:auto; margin-bottom:10px;"></div>
+          <textarea id="chatInput" rows="2" style="width:100%; resize:none;" placeholder="Say something..."></textarea>
+        </div>
+        <div style="flex:1.5; padding:20px; background:#121233;">
+          <h2 style="text-align:center;">${p1} vs ${p2}</h2>
+          <div id="board" style="display:grid; grid-template-columns:repeat(3,100px); gap:10px; margin:30px auto;"></div>
+          <div id="resultText" style="text-align:center; font-size:1.5em;"></div>
+        </div>
+      </div>
+    `;
+
+    let cells = Array(9).fill(null);
+    let currentPlayer = "X";
+    let finished = false;
+    let isBot = (mode === "offline");
+    const board = document.getElementById("board");
+
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement("div");
+      cell.style = `
+        width: 100px; height: 100px;
+        background: #444; border-radius: 10px;
+        font-size: 2em; display: flex;
+        align-items: center; justify-content: center;
+        cursor: pointer; color: #fff;
+      `;
+      cell.onclick = () => {
+        if (!cells[i] && !finished && currentPlayer === "X") {
+          cells[i] = "X";
+          cell.textContent = "X";
+
+          iaMemory[i] = (iaMemory[i] || 0) + 1;
+          localStorage.setItem("iaMemory", JSON.stringify(iaMemory));
+
+          currentPlayer = "O";
+          checkGame();
+          if (isBot && !finished) setTimeout(() => botMove(), 600);
+        }
+      };
+      board.appendChild(cell);
+    }
+
+    function botMove() {
+      let empty = cells.map((v, i) => v === null ? i : null).filter(v => v !== null);
+      if (empty.length === 0) return;
+      empty.sort((a, b) => (iaMemory[a] || 0) - (iaMemory[b] || 0));
+      const choice = empty[Math.min(2, empty.length - 1)];
+      cells[choice] = "O";
+      board.children[choice].textContent = "O";
+      botChat(choice);
+      currentPlayer = "X";
+      checkGame();
+    }
+
+    function checkGame() {
+      const combos = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (let combo of combos) {
+        const [a,b,c] = combo;
+        if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
+          finished = true;
+          const winner = cells[a] === "X" ? p1 : p2;
+          document.getElementById("resultText").textContent =
+            winner === p1 ? "YOU WON, CONGRATULATIONS!" : "YOU LOST... TRY AGAIN";
+
+          if (winner === p1 && mode === "online") {
+            db.ref("players/" + p1).once("value").then(snapshot => {
+              const current = snapshot.val();
+              const newCups = (current.cups || 0) + 1;
+              db.ref("players/" + p1).update({ cups: newCups });
+              localLeaderboard[p1] = newCups;
+              localStorage.setItem("leaderboard", JSON.stringify(localLeaderboard));
+            });
+          }
+
+          setTimeout(() => location.reload(), 4000);
+          return;
+        }
+      }
+
+      if (cells.every(c => c !== null)) {
+        finished = true;
+        document.getElementById("resultText").textContent = "IT'S A DRAW. TRY AGAIN!";
+        setTimeout(() => location.reload(), 4000);
+      }
+    }
+
+    // 🗣️ Chat
+    document.getElementById("chatInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !finished) {
+        e.preventDefault();
+        sendChat(p1, p2, mode);
+      }
+    });
+
+    function sendChat(p1, p2, mode) {
+      const input = document.getElementById("chatInput").value.trim();
+      if (!input) return;
+      const cleanMsg = sanitize(input);
+      const chatBox = document.getElementById("chatBox");
+
+      chatBox.innerHTML += `<div><strong>${p1}:</strong> ${cleanMsg}</div>`;
+      document.getElementById("chatInput").value = "";
+
+      const words = cleanMsg.toLowerCase().split(/\s+/);
+      words.forEach(word => {
+        iaVocabulary[word] = (iaVocabulary[word] || 0) + 1;
+      });
+      localStorage.setItem("iaVocabulary", JSON.stringify(iaVocabulary));
+
+      if (mode === "offline") {
+        setTimeout(() => {
+          const reply = generateSmartReply(words);
+          chatBox.innerHTML += `<div><strong>${p2}:</strong> ${reply}</div>`;
+        }, 1000);
+      }
+    }
+
+    function generateSmartReply(words) {
+      const allWords = Object.keys(iaVocabulary);
+      const weighted = allWords.sort((a, b) => iaVocabulary[b] - iaVocabulary[a]);
+      const suggestion = weighted.slice(0, 3).join(" ");
+      const intro = [
+        "I see you're focused on",
+        "Seems like you like talking about",
+        "Let me respond with something related to"
+      ];
+      return `${intro[Math.floor(Math.random() * intro.length)]}: ${suggestion}.`;
+    }
+
+    function botChat(move) {
+      const thoughts = ["Tracking your logic...", "Learning your placements...", "Countering your tactics..."];
+      const chatBox = document.getElementById("chatBox");
+      const reply = thoughts[Math.floor(Math.random() * thoughts.length)];
+      chatBox.innerHTML += `<div><strong>${p2}:</strong> ${reply}</div>`;
+    }
+
+    function sanitize(msg) {
+      const banned = ["badword", "idiot", "stupid", "xxx", "kill", "hate"];
+      let clean = msg;
+      banned.forEach(word => {
+        const regex = new RegExp(word, "gi");
+        clean = clean.replace(regex, "💥");
+      });
+      return clean;
+    }
+  }
+</script>
