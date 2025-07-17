@@ -106,26 +106,29 @@
     <h4>🏆 Top Players</h4>
     <ul id="leaderboardList"></ul>
   </div>
-  <!-- 🚀 SDK de Firebase -->
+  <!-- 🚀 Firebase SDK clásico -->
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
 
 <script>
-  // 🌌 Reemplaza esto con tu configuración real
   const firebaseConfig = {
- apiKey: "AIzaSyBKHMBcUvJ6khE-7QuKP_UKq1ZCXSh4IVA",
-  authDomain: "online-tic-tac-toe-9d0c6.firebaseapp.com",
-  projectId: "en línea-tic-tac-toe-9d0c6",
-  storageBucket: "online-tic-tac-toe-9d0c6.firebasestorage.app",
-  messagingSenderId: "874291605881",
-  appId: "1:874291605881:web:a198ff5c6a9d4d42977fa8",
-  measurementId: "G-C4RPY6M263"}; Initialize Firebaseconst app = initializeApp(firebaseConfig);const analytics = getAnalytics(app
-);
+    apiKey: "AIzaSyBKHMBcUvJ6khE-7QuKP_UKq1ZCXSh4IVA",
+    authDomain: "online-tic-tac-toe-9d0c6.firebaseapp.com",
+    projectId: "online-tic-tac-toe-9d0c6",
+    storageBucket: "online-tic-tac-toe-9d0c6.firebasestorage.app",
+    messagingSenderId: "874291605881",
+    appId: "1:874291605881:web:a198ff5c6a9d4d42977fa8",
+    measurementId: "G-C4RPY6M263",
+    databaseURL: "https://online-tic-tac-toe-9d0c6-default-rtdb.firebaseio.com"
+  };
+
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
   const bannedNames = ["admin", "null", "undefined", "badword", "idiot", "stupid", "xxx", "123456", "hacker"];
-  let localLeaderboard = JSON.parse(localStorage.getItem("leaderboard") || "{}");
+  let localLeaderboard = JSON.parse(localStorage.getItem("leaderboard") || {});
+  let iaMemory = JSON.parse(localStorage.getItem("iaMemory") || {});
+  let iaVocabulary = JSON.parse(localStorage.getItem("iaVocabulary") || {});
 
   window.onload = () => {
     const savedName = localStorage.getItem("playerName");
@@ -145,7 +148,6 @@
       if (!localLeaderboard[input]) localLeaderboard[input] = 0;
       localStorage.setItem("leaderboard", JSON.stringify(localLeaderboard));
 
-      // 🔒 Guardar jugador en Firebase con estado “disponible”
       db.ref("players/" + input).set({
         name: input,
         cups: localLeaderboard[input],
@@ -191,331 +193,17 @@
     document.getElementById("statusText").textContent = "SEARCHING FOR PLAYER... PLEASE WAIT";
     db.ref("players/" + name).update({ looking: true });
 
-    // ⏳ Buscar otro jugador en espera con nivel cercano
-    db.ref("players").orderByChild("looking").equalTo(true).once("value")
-      .then(snapshot => {
-        let candidate = null;
-        const myCups = localLeaderboard[name] || 0;
-        snapshot.forEach(child => {
-          const val = child.val();
-          if (val.name !== name && Math.abs((val.cups || 0) - myCups) <= 2) {
-            candidate = val.name;
-          }
-        });
-
-        if (candidate) {
-          document.getElementById("statusText").textContent = "PLAYER FOUND, CONNECTING...";
-          db.ref("players/" + name).update({ looking: false });
-          db.ref("players/" + candidate).update({ looking: false });
-          setTimeout(() => startGame(name, candidate, "online"), 2500);
-        } else {
-          document.getElementById("statusText").textContent = "SORRY, NO PLAYER FOUND :(";
+    db.ref("players").orderByChild("looking").equalTo(true).once("value").then(snapshot => {
+      let candidate = null;
+      const myCups = localLeaderboard[name] || 0;
+      snapshot.forEach(child => {
+        const val = child.val();
+        if (val.name !== name && Math.abs((val.cups || 0) - myCups) <= 2) {
+          candidate = val.name;
         }
       });
-  }
-</script>
-<script>
-  function startGame(p1, p2, mode) {
-    document.body.innerHTML = `
-      <div style="display:flex; height:100vh;">
-        <div style="flex:1; padding:20px; background:#1a1a2f;">
-          <h3 style="color:#0ff;">💬 Chat</h3>
-          <div id="chatBox" style="height:70vh; overflow-y:auto; margin-bottom:10px;"></div>
-          <textarea id="chatInput" rows="2" style="width:100%; resize:none;" placeholder="Say something..."></textarea>
-        </div>
-        <div style="flex:1.5; padding:20px; background:#121233;">
-          <h2 style="text-align:center;">TIK A TAK BATTLE</h2>
-          <div class="player-bar">
-            <div style="color:#0ff;">🧑 ${p1}</div>
-            <div style="color:#f0f;">👾 ${p2}</div>
-          </div>
-          <div id="board" style="display:grid; grid-template-columns:repeat(3,100px); gap:10px; margin:30px auto;"></div>
-          <div id="resultText" style="text-align:center; font-size:1.5em;"></div>
-        </div>
-      </div>
-    `;
 
-    let cells = Array(9).fill(null);
-    let currentPlayer = "X";
-    let finished = false;
-    let isBot = (mode === "offline");
-    const board = document.getElementById("board");
-
-    // 🔁 Memoria IA: jugadas + palabras
-    let iaMemory = JSON.parse(localStorage.getItem("iaMemory") || "{}");
-    let iaVocabulary = JSON.parse(localStorage.getItem("iaVocabulary") || {});
-    let playerWords = {};
-
-    for (let i = 0; i < 9; i++) {
-      const cell = document.createElement("div");
-      cell.style = `
-        width: 100px; height: 100px;
-        background: #444; border-radius: 10px;
-        font-size: 2em; display: flex;
-        align-items: center; justify-content: center;
-        cursor: pointer; color: #fff;
-      `;
-      cell.onclick = () => {
-        if (!cells[i] && !finished && currentPlayer === "X") {
-          cells[i] = "X";
-          cell.textContent = "X";
-
-          // 🧠 Aprendizaje IA
-          iaMemory[i] = (iaMemory[i] || 0) + 1;
-          localStorage.setItem("iaMemory", JSON.stringify(iaMemory));
-
-          currentPlayer = "O";
-          checkGame();
-          if (isBot && !finished) setTimeout(() => botMove(), 600);
-        }
-      };
-      board.appendChild(cell);
-    }
-
-    function botMove() {
-      let empty = cells.map((v, i) => v === null ? i : null).filter(v => v !== null);
-      if (empty.length === 0) return;
-
-      // 🔄 IA mejora: evita casillas que has usado mucho
-      empty.sort((a, b) => (iaMemory[a] || 0) - (iaMemory[b] || 0));
-      let choice = empty[Math.min(2, empty.length - 1)]; // IA más agresiva según dificultad
-      cells[choice] = "O";
-      board.children[choice].textContent = "O";
-      botChat(choice);
-      currentPlayer = "X";
-      checkGame();
-    }
-
-    function checkGame() {
-      const combos = [
-        [0,1,2],[3,4,5],[6,7,8],
-        [0,3,6],[1,4,7],[2,5,8],
-        [0,4,8],[2,4,6]
-      ];
-      for (let combo of combos) {
-        const [a,b,c] = combo;
-        if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
-          finished = true;
-          const winner = cells[a] === "X" ? p1 : p2;
-          document.getElementById("resultText").textContent =
-            winner === p1 ? "YOU WON, CONGRATULATIONS!" : "YOU LOST... TRY AGAIN";
-
-          if (winner === p1 && mode === "online") {
-            db.ref("players/" + p1).once("value").then(snapshot => {
-              const current = snapshot.val();
-              const newCups = (current.cups || 0) + 1;
-              db.ref("players/" + p1).update({ cups: newCups });
-              localLeaderboard[p1] = newCups;
-              localStorage.setItem("leaderboard", JSON.stringify(localLeaderboard));
-            });
-          }
-
-          setTimeout(() => location.reload(), 4000);
-          return;
-        }
-      }
-      if (cells.every(cell => cell !== null) && !finished) {
-        finished = true;
-        document.getElementById("resultText").textContent = "IT'S A DRAW. TRY AGAIN!";
-        setTimeout(() => location.reload(), 4000);
-      }
-    }
-
-    // 💬 Chat con Enter
-    document.getElementById("chatInput").addEventListener("keydown", function (e) {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        sendChat(p1, p2, mode, finished);
-      }
-    });
-
-    function sendChat(p1, p2, mode, finished) {
-      const input = document.getElementById("chatInput").value.trim();
-      if (!input) return;
-      const cleanMsg = sanitize(input);
-      const chatBox = document.getElementById("chatBox");
-
-      chatBox.innerHTML += `<div><strong>${p1}:</strong> ${cleanMsg}</div>`;
-      document.getElementById("chatInput").value = "";
-
-      // 🧠 Guardar palabras para IA
-      const words = cleanMsg.toLowerCase().split(/\s+/);
-      words.forEach(word => {
-        iaVocabulary[word] = (iaVocabulary[word] || 0) + 1;
-      });
-      localStorage.setItem("iaVocabulary", JSON.stringify(iaVocabulary));
-
-      if (mode === "offline" && !finished) {
-        setTimeout(() => {
-          const reply = generateSmartReply(words);
-          chatBox.innerHTML += `<div><strong>${p2}:</strong> ${reply}</div>`;
-        }, 1000);
-      }
-    }
-
-    function generateSmartReply(words) {
-      const allWords = Object.keys(iaVocabulary);
-      const weighted = allWords.sort((a, b) => iaVocabulary[b] - iaVocabulary[a]);
-      const suggestion = weighted.slice(0, 3).join(" ");
-      const intro = [
-        "I see you're focused on",
-        "Seems like you like talking about",
-        "Let me respond with something related to"
-      ];
-      return `${intro[Math.floor(Math.random() * intro.length)]}: ${suggestion}.`;
-    }
-
-    function botChat(move) {
-      const thoughts = ["Tracking your logic...", "Learning your placements...", "Countering your tactics..."];
-      const chatBox = document.getElementById("chatBox");
-      const reply = thoughts[Math.floor(Math.random() * thoughts.length)];
-      chatBox.innerHTML += `<div><strong>${p2}:</strong> ${reply}</div>`;
-    }
-
-    function sanitize(msg) {
-      const banned = ["badword", "idiot", "stupid", "xxx", "kill", "hate"];
-      let clean = msg;
-      banned.forEach(word => {
-        const regex = new RegExp(word, "gi");
-        clean = clean.replace(regex, "💥");
-      });
-      return clean;
-    }
-  }
-</script>
-<script>
-  function validateName() {
-    const input = document.getElementById("playerName").value.trim();
-    const bannedNames = ["admin", "null", "undefined", "badword", "idiot", "stupid", "xxx", "123456", "hacker"];
-
-    if (input.length < 3 || bannedNames.includes(input.toLowerCase())) {
-      document.getElementById("errorMsg").style.display = "block";
-    } else {
-      localStorage.setItem("playerName", input);
-      document.getElementById("nameContainer").style.display = "none";
-      document.getElementById("menuContainer").style.display = "flex";
-
-      // 👾 Si estás usando Firebase, guarda al jugador
-      if (typeof db !== "undefined") {
-        db.ref("players/" + input).set({
-          name: input,
-          cups: 0,
-          online: true,
-          looking: false
-        });
-      }
-
-      renderLeaderboard(); // ← Esto muestra los jugadores top
-    }
-  }
-
-  function renderLeaderboard() {
-    if (typeof db !== "undefined") {
-      db.ref("players").once("value").then(snapshot => {
-        let players = [];
-        snapshot.forEach(child => {
-          const val = child.val();
-          players.push({ name: val.name, cups: val.cups || 0 });
-        });
-
-        const sorted = players
-          .sort((a, b) => b.cups - a.cups)
-          .slice(0, 5)
-          .map(p => `<li>${p.name}: ${p.cups} wins</li>`)
-          .join("");
-
-        document.getElementById("leaderboardList").innerHTML = sorted;
-      });
-    }
-  }
-</script>
-
-  <script>
-  function startOffline() {
-    const name = localStorage.getItem("playerName");
-    document.getElementById("statusText").textContent =
-      "YOU WILL PLAY AGAINST A BASIC AI, GOOD LUCK ;)";
-    db.ref("players/" + name).update({ looking: false });
-    setTimeout(() => startGame(name, "BOT-01", "offline"), 2500);
-  }
-
-  function startOnline() {
-    const name = localStorage.getItem("playerName");
-    document.getElementById("statusText").textContent =
-      "SEARCHING FOR PLAYER... PLEASE WAIT";
-    db.ref("players/" + name).update({ looking: true });
-
-    db.ref("players")
-      .orderByChild("looking")
-      .equalTo(true)
-      .once("value")
-      .then(snapshot => {
-        let candidate = null;
-        const myCups = JSON.parse(localStorage.getItem("leaderboard") || "{}")[name] || 0;
-
-        snapshot.forEach(child => {
-          const val = child.val();
-          if (
-            val.name !== name &&
-            Math.abs((val.cups || 0) - myCups) <= 2
-          ) {
-            candidate = val.name;
-          }
-        });
-
-        if (candidate) {
-          document.getElementById("statusText").textContent = "PLAYER FOUND, CONNECTING...";
-          db.ref("players/" + name).update({ looking: false });
-          db.ref("players/" + candidate).update({ looking: false });
-          setTimeout(() => startGame(name, candidate, "online"), 2500);
-        } else {
-          document.getElementById("statusText").textContent = "SORRY, NO PLAYER FOUND :(";
-        }
-      });
-  }
-</script>
-  <script>
-  function startGame(p1, p2, mode) {
-    // ✨ Esta es la estructura básica que crea el tablero y el chat
-    document.body.innerHTML = `
-      <div style="display:flex; height:100vh;">
-        <div style="flex:1; padding:20px; background:#1a1a2f;">
-          <h3 style="color:#0ff;">💬 Chat</h3>
-          <div id="chatBox" style="height:70vh; overflow-y:auto;"></div>
-          <textarea id="chatInput" rows="2" style="width:100%; resize:none;" placeholder="Say something..."></textarea>
-        </div>
-        <div style="flex:1.5; padding:20px; background:#121233;">
-          <h2 style="text-align:center;">${p1} vs ${p2}</h2>
-          <div id="board" style="display:grid; grid-template-columns:repeat(3,100px); gap:10px; margin:30px auto;"></div>
-          <div id="resultText" style="text-align:center; font-size:1.5em;"></div>
-        </div>
-      </div>
-    `;
-
-    // 🧠 Aquí puedes agregar la lógica del juego, IA y chat
-    // Por ejemplo: pintar el tablero, manejar turnos, detectar ganador, etc.
-    // Si quieres que te lo deje completo y listo para jugar, ¡te paso el motor galáctico!
-  }
-</script>
-</body>
-</html>
-<!-- 🚀 Firebase SDK clásico para HTML -->
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
-
-<script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBKHMBcUvJ6khE-7QuKP_UKq1ZCXSh4IVA",
-    authDomain: "online-tic-tac-toe-9d0c6.firebaseapp.com",
-    projectId: "online-tic-tac-toe-9d0c6",
-    storageBucket: "online-tic-tac-toe-9d0c6.firebasestorage.app",
-    messagingSenderId: "874291605881",
-    appId: "1:874291605881:web:a198ff5c6a9d4d42977fa8",
-    measurementId: "G-C4RPY6M263",
-    databaseURL: "https://online-tic-tac-toe-9d0c6-default-rtdb.firebaseio.com"
-  };
-
-  // 🌐 Inicializar Firebase y la base de datos
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-</script>
+      if (candidate) {
+        document.getElementById("statusText").textContent = "PLAYER FOUND, CONNECTING...";
+        db.ref("players/" + name).update({ looking: false });
+        db.ref("players/" + candidate).update({ looking: false
