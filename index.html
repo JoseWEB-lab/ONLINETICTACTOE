@@ -106,16 +106,17 @@
     <h4>🏆 Top Players</h4>
     <ul id="leaderboardList"></ul>
   </div>
-  <!-- 🚀 Firebase SDK clásico -->
+  <!-- 🚀 Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
 
 <script>
+  // 🔧 Configuración de Firebase (personalízala si cambias de proyecto)
   const firebaseConfig = {
     apiKey: "AIzaSyBKHMBcUvJ6khE-7QuKP_UKq1ZCXSh4IVA",
     authDomain: "online-tic-tac-toe-9d0c6.firebaseapp.com",
     projectId: "online-tic-tac-toe-9d0c6",
-    storageBucket: "online-tic-tac-toe-9d0c6.firebasestorage.app",
+    storageBucket: "online-tic-tac-toe-9d0c6.appspot.com",
     messagingSenderId: "874291605881",
     appId: "1:874291605881:web:a198ff5c6a9d4d42977fa8",
     measurementId: "G-C4RPY6M263",
@@ -125,11 +126,13 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+  // 🧠 Variables globales
   const bannedNames = ["admin", "null", "undefined", "badword", "idiot", "stupid", "xxx", "123456", "hacker"];
   let localLeaderboard = JSON.parse(localStorage.getItem("leaderboard") || {});
   let iaMemory = JSON.parse(localStorage.getItem("iaMemory") || {});
   let iaVocabulary = JSON.parse(localStorage.getItem("iaVocabulary") || {});
 
+  // 🔁 Autocarga si el nombre ya está guardado
   window.onload = () => {
     const savedName = localStorage.getItem("playerName");
     if (savedName && savedName.length >= 3 && !bannedNames.includes(savedName.toLowerCase())) {
@@ -148,6 +151,7 @@
       if (!localLeaderboard[input]) localLeaderboard[input] = 0;
       localStorage.setItem("leaderboard", JSON.stringify(localLeaderboard));
 
+      // 👤 Guardar jugador en Firebase
       db.ref("players/" + input).set({
         name: input,
         cups: localLeaderboard[input],
@@ -172,11 +176,13 @@
         const val = child.val();
         players.push({ name: val.name, cups: val.cups || 0 });
       });
+
       const sorted = players
         .sort((a, b) => b.cups - a.cups)
         .slice(0, 5)
         .map(p => `<li>${p.name}: ${p.cups} wins</li>`)
         .join("");
+
       document.getElementById("leaderboardList").innerHTML = sorted;
     });
   }
@@ -196,9 +202,13 @@
     db.ref("players").orderByChild("looking").equalTo(true).once("value").then(snapshot => {
       let candidate = null;
       const myCups = localLeaderboard[name] || 0;
+
       snapshot.forEach(child => {
         const val = child.val();
-        if (val.name !== name && Math.abs((val.cups || 0) - myCups) <= 2) {
+        if (
+          val.name !== name &&
+          Math.abs((val.cups || 0) - myCups) <= 2
+        ) {
           candidate = val.name;
         }
       });
@@ -206,7 +216,14 @@
       if (candidate) {
         document.getElementById("statusText").textContent = "PLAYER FOUND, CONNECTING...";
         db.ref("players/" + name).update({ looking: false });
-        db.ref("players/" + candidate).update({ looking: false
+        db.ref("players/" + candidate).update({ looking: false });
+        setTimeout(() => startGame(name, candidate, "online"), 2500);
+      } else {
+        document.getElementById("statusText").textContent = "SORRY, NO PLAYER FOUND :(";
+      }
+    });
+  }
+</script>
 <script>
   function startGame(p1, p2, mode) {
     document.body.innerHTML = `
@@ -249,7 +266,7 @@
 
           currentPlayer = "O";
           checkGame();
-          if (isBot && !finished) setTimeout(() => botMove(), 600);
+          if (isBot && !finished) setTimeout(botMove, 600);
         }
       };
       board.appendChild(cell);
@@ -303,7 +320,6 @@
       }
     }
 
-    // 🗣️ Chat
     document.getElementById("chatInput").addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !finished) {
         e.preventDefault();
@@ -340,7 +356,7 @@
       const suggestion = weighted.slice(0, 3).join(" ");
       const intro = [
         "I see you're focused on",
-        "Seems like you like talking about",
+        "Seems like you enjoy talking about",
         "Let me respond with something related to"
       ];
       return `${intro[Math.floor(Math.random() * intro.length)]}: ${suggestion}.`;
@@ -364,3 +380,6 @@
     }
   }
 </script>
+</body>
+</html>
+
