@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ONLINE TIC TAC TOE</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron&display=swap');
+    body {
+      font-family: 'Orbitron', sans-serif;
+      margin: 0;
+      background: linear-gradient(120deg, #0f0f3a, #000000);
+      color: #fff;
+      overflow: hidden;
+    }
+    h1 {
+      text-align: center;
+      font-size: 4em;
+      margin: 30px 0;
+      animation: glow 2s infinite;
+    }
+    @keyframes glow {
+      0%, 100% { text-shadow: 0 0 20px #8f00ff; }
+      50% { text-shadow: 0 0 40px #00ffff; }
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 30px;
+    }
+    input, textarea {
+      padding: 10px 20px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      width: 300px;
+    }
+    .error {
+      color: red;
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: none;
+    }
+    button {
+      margin: 10px;
+      padding: 15px 30px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 20px;
+      background: linear-gradient(45deg, #6a0dad, #3c1361);
+      color: white;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px #8a2be2;
+    }
+    .status {
+      margin-top: 30px;
+      font-size: 1.5em;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+    #leaderboard {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: #222;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    #leaderboard h4 {
+      margin: 0;
+      font-size: 1em;
+      color: #0ff;
+    }
+    #leaderboard ul {
+      list-style: none;
+      padding: 0;
+      margin: 5px 0 0 0;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <h1>ONLINE TIC TAC TOE</h1>
+
+  <div class="container" id="nameContainer">
+    <div class="error" id="errorMsg">THIS NAME IS NOT APPROPRIATE, PLEASE ENTER A COMMON ONE</div>
+    <input type="text" id="playerName" placeholder="Enter your name" />
+    <button onclick="validateName()">Continue</button>
+  </div>
+
+  <div class="container" id="menuContainer" style="display:none;">
+    <h2>LOBBY</h2>
+    <button onclick="startOnline()">🟢 ONLINE</button>
+    <button onclick="startOffline()">🔵 OFFLINE</button>
+    <div class="status" id="statusText"></div>
+  </div>
+
+  <div id="leaderboard">
+    <h4>🏆 Top Players</h4>
+    <ul id="leaderboardList"></ul>
+  </div>
+<script>
+  const bannedNames = ["admin", "null", "undefined", "badword", "idiot", "stupid", "xxx", "123456", "hacker"];
+  let leaderboard = JSON.parse(localStorage.getItem("leaderboard") || "{}");
+
+  // Mostrar el lobby si ya hay nombre
+  window.onload = () => {
+    const savedName = localStorage.getItem("playerName");
+    if (savedName && savedName.length >= 3 && !bannedNames.includes(savedName.toLowerCase())) {
+      if (!leaderboard[savedName]) leaderboard[savedName] = 0;
+      localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+      renderLeaderboard();
+      document.getElementById("nameContainer").style.display = "none";
+      document.getElementById("menuContainer").style.display = "flex";
+    }
+  };
+
+  function validateName() {
+    const input = document.getElementById("playerName").value.trim();
+    if (input.length < 3 || bannedNames.includes(input.toLowerCase())) {
+      document.getElementById("errorMsg").style.display = "block";
+    } else {
+      localStorage.setItem("playerName", input);
+      if (!leaderboard[input]) leaderboard[input] = 0;
+      localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+      document.getElementById("nameContainer").style.display = "none";
+      document.getElementById("menuContainer").style.display = "flex";
+      renderLeaderboard();
+    }
+  }
+
+  function renderLeaderboard() {
+    const sorted = Object.entries(leaderboard)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, score]) => `<li>${name}: ${score} wins</li>`)
+      .join("");
+    document.getElementById("leaderboardList").innerHTML = sorted;
+  }
+
+  function startOffline() {
+    const name = localStorage.getItem("playerName");
+    const status = document.getElementById("statusText");
+    status.textContent = "YOU WILL PLAY AGAINST A BASIC AI, GOOD LUCK ;)";
+    setTimeout(() => startGame(name, "BOT-01", "offline"), 2500);
+  }
+
+  function startOnline() {
+    const name = localStorage.getItem("playerName");
+    const myWins = leaderboard[name] || 0;
+    const status = document.getElementById("statusText");
+    status.textContent = "SEARCHING FOR PLAYER... PLEASE WAIT";
+
+    let opponent = Object.keys(leaderboard).find(other =>
+      other !== name && Math.abs(leaderboard[other] - myWins) <= 2
+    );
+
+    setTimeout(() => {
+      if (opponent) {
+        status.textContent = "PLAYER FOUND, CONGRATULATIONS!";
+        setTimeout(() => startGame(name, opponent, "online"), 2500);
+      } else {
+        status.textContent = "SORRY, NO PLAYER FOUND :(";
+      }
+    }, 3000);
+  }
+</script>
+<script>
+  function startGame(p1, p2, mode) {
+    document.body.innerHTML = `
+      <div style="display:flex; height:100vh;">
+        <!-- Chat izquierdo -->
+        <div style="flex:1; padding:20px; background:#1a1a2f;">
+          <h3 style="color:#0ff;">💬 Chat</h3>
+          <div id="chatBox" style="height:70vh; overflow-y:auto; margin-bottom:10px;"></div>
+          <textarea id="chatInput" rows="2" style="width:100%; resize:none;" placeholder="Say something..."></textarea>
+        </div>
+
+        <!-- Juego derecho -->
+        <div style="flex:1.5; padding:20px; background:#121233;">
+          <h2 style="text-align:center;">TIK A TAK BATTLE</h2>
+          <div class="player-bar">
+            <div style="color:#0ff;">🧑 ${p1}</div>
+            <div style="color:#f0f;">👾 ${p2}</div>
+          </div>
+          <div id="board" style="display:grid; grid-template-columns:repeat(3,100px); gap:10px; margin:30px auto;"></div>
+          <div id="resultText" style="text-align:center; font-size:1.5em;"></div>
+        </div>
+      </div>
+    `;
+
+    let cells = Array(9).fill(null);
+    let currentPlayer = "X";
+    let isBot = (mode === "offline");
+    let finished = false;
+
+    let iaMemory = JSON.parse(localStorage.getItem("iaMemory") || "{}");
+    const board = document.getElementById("board");
+
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.style = `
+        width: 100px;
+        height: 100px;
+        background: #444;
+        border-radius: 10px;
+        font-size: 2em;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: #fff;
+      `;
+      cell.onclick = () => {
+        if (!cells[i] && !finished && currentPlayer === "X") {
+          cells[i] = "X";
+          cell.textContent = "X";
+          iaMemory[i] = (iaMemory[i] || 0) + 1;
+          localStorage.setItem("iaMemory", JSON.stringify(iaMemory));
+          currentPlayer = "O";
+          checkGame();
+          if (isBot && !finished) setTimeout(() => botMove(), 600);
+        }
+      };
+      board.appendChild(cell);
+    }
+
+    function botMove() {
+      let empty = cells.map((v, i) => v === null ? i : null).filter(v => v !== null);
+      if (empty.length === 0) return;
+      empty.sort((a, b) => (iaMemory[a] || 0) - (iaMemory[b] || 0));
+      let choice = empty[0];
+      cells[choice] = "O";
+      board.children[choice].textContent = "O";
+      botChat(choice);
+      currentPlayer = "X";
+      checkGame();
+    }
+
+    function checkGame() {
+      const combos = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (let combo of combos) {
+        const [a,b,c] = combo;
+        if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
+          finished = true;
+          const winner = cells[a] === "X" ? p1 : p2;
+          document.getElementById("resultText").textContent =
+            winner === p1 ? "YOU WON, CONGRATULATIONS!" : "YOU LOST... TRY AGAIN";
+          if (winner === p1 && mode === "online") {
+            leaderboard[p1]++;
+            localStorage.setItem("leaderboard", JSON.stringify(leaderboard));
+          }
+          setTimeout(() => location.reload(), 4000); // retorno automático
+          return;
+        }
+      }
+      if (cells.every(cell => cell !== null) && !finished) {
+        finished = true;
+        document.getElementById("resultText").textContent = "IT'S A DRAW. TRY AGAIN!";
+        setTimeout(() => location.reload(), 4000);
+      }
+    }
+
+    // Chat sin botón: Enter para enviar
+    document.getElementById("chatInput").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sendChat(p1, p2, mode, finished);
+      }
+    });
+
+    function sendChat(p1, p2, mode, finished) {
+      const chatInput = document.getElementById("chatInput").value.trim();
+      if (!chatInput) return;
+      const cleanMsg = sanitizeMessage(chatInput);
+      const chatBox = document.getElementById("chatBox");
+      chatBox.innerHTML += `<div><strong>${p1}:</strong> ${cleanMsg}</div>`;
+      document.getElementById("chatInput").value = "";
+
+      if (mode === "offline" && !finished) {
+        setTimeout(() => {
+          const reply = botResponses[Math.floor(Math.random() * botResponses.length)];
+          chatBox.innerHTML += `<div><strong>${p2}:</strong> ${reply}</div>`;
+        }, 1000);
+      }
+    }
+
+    function botChat(move) {
+      const reactions = [
+        "Interesting spot...",
+        "You like corners, don't you?",
+        "Pattern detected...",
+        "Countering your move!",
+        "You will not win this time 😈"
+      ];
+      const chatBox = document.getElementById("chatBox");
+      const reply = reactions[Math.floor(Math.random() * reactions.length)];
+      chatBox.innerHTML += `<div><strong>${p2}:</strong> ${reply}</div>`;
+    }
+
+    const botResponses = [
+      "Let's play fair.",
+      "You are good at this!",
+      "Hmm, thinking...",
+      "I'm learning from you.",
+      "This round will be mine!"
+    ];
+
+    function sanitizeMessage(msg) {
+      const bannedWords = ["badword", "idiot", "stupid", "xxx", "kill", "hate"];
+      let clean = msg;
+      bannedWords.forEach(bad => {
+        const regex = new RegExp(bad, "gi");
+        clean = clean.replace(regex, "💥");
+      });
+      return clean;
+    }
+  }
+</script>
+</body>
+</html>
