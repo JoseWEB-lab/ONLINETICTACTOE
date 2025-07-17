@@ -429,6 +429,51 @@
     }
   }
 </script>
+
+  <script>
+  function startOffline() {
+    const name = localStorage.getItem("playerName");
+    document.getElementById("statusText").textContent =
+      "YOU WILL PLAY AGAINST A BASIC AI, GOOD LUCK ;)";
+    db.ref("players/" + name).update({ looking: false });
+    setTimeout(() => startGame(name, "BOT-01", "offline"), 2500);
+  }
+
+  function startOnline() {
+    const name = localStorage.getItem("playerName");
+    document.getElementById("statusText").textContent =
+      "SEARCHING FOR PLAYER... PLEASE WAIT";
+    db.ref("players/" + name).update({ looking: true });
+
+    db.ref("players")
+      .orderByChild("looking")
+      .equalTo(true)
+      .once("value")
+      .then(snapshot => {
+        let candidate = null;
+        const myCups = JSON.parse(localStorage.getItem("leaderboard") || "{}")[name] || 0;
+
+        snapshot.forEach(child => {
+          const val = child.val();
+          if (
+            val.name !== name &&
+            Math.abs((val.cups || 0) - myCups) <= 2
+          ) {
+            candidate = val.name;
+          }
+        });
+
+        if (candidate) {
+          document.getElementById("statusText").textContent = "PLAYER FOUND, CONNECTING...";
+          db.ref("players/" + name).update({ looking: false });
+          db.ref("players/" + candidate).update({ looking: false });
+          setTimeout(() => startGame(name, candidate, "online"), 2500);
+        } else {
+          document.getElementById("statusText").textContent = "SORRY, NO PLAYER FOUND :(";
+        }
+      });
+  }
+</script>
 </body>
 </html>
 <!-- 🚀 Firebase SDK clásico para HTML -->
