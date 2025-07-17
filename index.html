@@ -383,22 +383,52 @@
     }
   }
 </script>
-<!-- Aquí van todas tus funciones JavaScript -->
 <script>
   function validateName() {
     const input = document.getElementById("playerName").value.trim();
-    if (input.length < 3) {
+    const bannedNames = ["admin", "null", "undefined", "badword", "idiot", "stupid", "xxx", "123456", "hacker"];
+
+    if (input.length < 3 || bannedNames.includes(input.toLowerCase())) {
       document.getElementById("errorMsg").style.display = "block";
     } else {
       localStorage.setItem("playerName", input);
       document.getElementById("nameContainer").style.display = "none";
       document.getElementById("menuContainer").style.display = "flex";
+
+      // 👾 Si estás usando Firebase, guarda al jugador
+      if (typeof db !== "undefined") {
+        db.ref("players/" + input).set({
+          name: input,
+          cups: 0,
+          online: true,
+          looking: false
+        });
+      }
+
+      renderLeaderboard(); // ← Esto muestra los jugadores top
     }
   }
 
-  // Puedes seguir colocando otras funciones aquí...
-</script>
+  function renderLeaderboard() {
+    if (typeof db !== "undefined") {
+      db.ref("players").once("value").then(snapshot => {
+        let players = [];
+        snapshot.forEach(child => {
+          const val = child.val();
+          players.push({ name: val.name, cups: val.cups || 0 });
+        });
 
+        const sorted = players
+          .sort((a, b) => b.cups - a.cups)
+          .slice(0, 5)
+          .map(p => `<li>${p.name}: ${p.cups} wins</li>`)
+          .join("");
+
+        document.getElementById("leaderboardList").innerHTML = sorted;
+      });
+    }
+  }
+</script>
 </body>
 </html>
 <!-- 🚀 Firebase SDK clásico para HTML -->
