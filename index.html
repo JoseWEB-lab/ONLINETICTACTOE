@@ -474,6 +474,29 @@
       });
   }
 </script>
+  <script>
+  function startGame(p1, p2, mode) {
+    // ✨ Esta es la estructura básica que crea el tablero y el chat
+    document.body.innerHTML = `
+      <div style="display:flex; height:100vh;">
+        <div style="flex:1; padding:20px; background:#1a1a2f;">
+          <h3 style="color:#0ff;">💬 Chat</h3>
+          <div id="chatBox" style="height:70vh; overflow-y:auto;"></div>
+          <textarea id="chatInput" rows="2" style="width:100%; resize:none;" placeholder="Say something..."></textarea>
+        </div>
+        <div style="flex:1.5; padding:20px; background:#121233;">
+          <h2 style="text-align:center;">${p1} vs ${p2}</h2>
+          <div id="board" style="display:grid; grid-template-columns:repeat(3,100px); gap:10px; margin:30px auto;"></div>
+          <div id="resultText" style="text-align:center; font-size:1.5em;"></div>
+        </div>
+      </div>
+    `;
+
+    // 🧠 Aquí puedes agregar la lógica del juego, IA y chat
+    // Por ejemplo: pintar el tablero, manejar turnos, detectar ganador, etc.
+    // Si quieres que te lo deje completo y listo para jugar, ¡te paso el motor galáctico!
+  }
+</script>
 </body>
 </html>
 <!-- 🚀 Firebase SDK clásico para HTML -->
