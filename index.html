@@ -386,3 +386,23 @@
 </script>
 </body>
 </html>
+<!-- 🚀 Firebase SDK clásico para HTML -->
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBKHMBcUvJ6khE-7QuKP_UKq1ZCXSh4IVA",
+    authDomain: "online-tic-tac-toe-9d0c6.firebaseapp.com",
+    projectId: "online-tic-tac-toe-9d0c6",
+    storageBucket: "online-tic-tac-toe-9d0c6.firebasestorage.app",
+    messagingSenderId: "874291605881",
+    appId: "1:874291605881:web:a198ff5c6a9d4d42977fa8",
+    measurementId: "G-C4RPY6M263",
+    databaseURL: "https://online-tic-tac-toe-9d0c6-default-rtdb.firebaseio.com"
+  };
+
+  // 🌐 Inicializar Firebase y la base de datos
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+</script>
