@@ -113,15 +113,14 @@
 <script>
   // 🌌 Reemplaza esto con tu configuración real
   const firebaseConfig = {
-    apiKey: "TU-CLAVE",
-    authDomain: "tu-proyecto.firebaseapp.com",
-    databaseURL: "https://tu-proyecto-default-rtdb.firebaseio.com",
-    projectId: "tu-proyecto",
-    storageBucket: "tu-proyecto.appspot.com",
-    messagingSenderId: "XXXXXXX",
-    appId: "XXXXXXX"
-  };
-
+ apiKey: "AIzaSyBKHMBcUvJ6khE-7QuKP_UKq1ZCXSh4IVA",
+  authDomain: "online-tic-tac-toe-9d0c6.firebaseapp.com",
+  projectId: "en línea-tic-tac-toe-9d0c6",
+  storageBucket: "online-tic-tac-toe-9d0c6.firebasestorage.app",
+  messagingSenderId: "874291605881",
+  appId: "1:874291605881:web:a198ff5c6a9d4d42977fa8",
+  measurementId: "G-C4RPY6M263"}; Initialize Firebaseconst app = initializeApp(firebaseConfig);const analytics = getAnalytics(app
+);
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -384,6 +383,22 @@
     }
   }
 </script>
+<!-- Aquí van todas tus funciones JavaScript -->
+<script>
+  function validateName() {
+    const input = document.getElementById("playerName").value.trim();
+    if (input.length < 3) {
+      document.getElementById("errorMsg").style.display = "block";
+    } else {
+      localStorage.setItem("playerName", input);
+      document.getElementById("nameContainer").style.display = "none";
+      document.getElementById("menuContainer").style.display = "flex";
+    }
+  }
+
+  // Puedes seguir colocando otras funciones aquí...
+</script>
+
 </body>
 </html>
 <!-- 🚀 Firebase SDK clásico para HTML -->
